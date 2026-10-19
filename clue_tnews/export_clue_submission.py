@@ -132,37 +132,38 @@ def main():
     elapsed = time.time() - start_time
     print(f"     ⚡ 10,000 条样本推理全部完成！耗时仅 {elapsed:.2f} 秒！({len(raw_test)/elapsed:.0f} 条/秒)")
 
-    # 5. 写入官方格式 JSONL 文件
+    # 5. 写入官方格式 JSONL 文件 (覆盖所有官方裁判端版本规则)
     output_dir = os.path.join(current_dir, "submission")
     os.makedirs(output_dir, exist_ok=True)
-    json_path = os.path.join(output_dir, "tnews_predict.json")
-    json_path_v11 = os.path.join(output_dir, "tnews1.1_predict.json")
+    
+    file_aliases = [
+        "tnews11_predict.json",  # ★ CLUE 1.1 官方唯一指定命名 (无小数点)
+        "tnews10_predict.json",  # ★ CLUE 1.0 兼容命名
+        "tnews_predict.json",    # 经典通用命名
+        "tnews1.1_predict.json", # 带小数点备用命名
+    ]
 
-    with open(json_path, "w", encoding="utf-8") as f:
-        for r in submission_records:
-            f.write(json.dumps(r, ensure_ascii=False) + "\n")
+    for fname in file_aliases:
+        fpath = os.path.join(output_dir, fname)
+        with open(fpath, "w", encoding="utf-8") as f:
+            for r in submission_records:
+                f.write(json.dumps(r, ensure_ascii=False) + "\n")
 
-    # 兼容 CLUE1.1 版本的命名
-    with open(json_path_v11, "w", encoding="utf-8") as f:
-        for r in submission_records:
-            f.write(json.dumps(r, ensure_ascii=False) + "\n")
+    print(f"\n👉 [6] 官方标准预测文件已全量生成 (包含 tnews11_predict.json 等):")
+    print(f"     📄 路径: {os.path.join(output_dir, file_aliases[0])} (共 {len(submission_records):,} 行)")
 
-    print(f"\n👉 [6] 官方标准预测文件已生成:")
-    print(f"     📄 路径: {json_path} (共 {len(submission_records):,} 行)")
-
-    # 6. 自动打包 zip (同时生成 tnews_submission.zip 和 submit.zip 确保官方裁判端识别)
+    # 6. 自动打包 zip
     zip_paths = [
-        os.path.join(output_dir, "tnews_submission.zip"),
-        os.path.join(output_dir, "submit.zip")
+        os.path.join(output_dir, "submit.zip"),
+        os.path.join(output_dir, "tnews_submission.zip")
     ]
     for zp in zip_paths:
         with zipfile.ZipFile(zp, "w", zipfile.ZIP_DEFLATED) as zipf:
-            zipf.write(json_path, arcname="tnews_predict.json")
-            zipf.write(json_path_v11, arcname="tnews1.1_predict.json")
+            for fname in file_aliases:
+                zipf.write(os.path.join(output_dir, fname), arcname=fname)
 
     print(f"👉 [7] 官方标准打榜提交压缩包已就绪:")
-    print(f"     📦 压缩包路径 1: {zip_paths[0]}")
-    print(f"     📦 压缩包路径 2: {zip_paths[1]} (官方推荐默认名)")
+    print(f"     📦 压缩包路径: {zip_paths[0]} (全命名兼容无死角)")
 
     # 7. 打印样例预览
     print("\n" + "=" * 80)
